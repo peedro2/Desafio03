@@ -1,8 +1,8 @@
 const express = require("express");
-const controlador = require("./controlador/controladores");
+const { cadastrarUsuario } = require("./controlador/controladores");
 
 const rotas = express();
 
-rotas.post("/usuario", controlador.cadastrarUsuario);
+rotas.post("/usuario", cadastrarUsuario);
 
 module.exports = rotas;
