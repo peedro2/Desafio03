@@ -1,5 +1,6 @@
 const pool = require("../conexao");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const cadastrarUsuario = async (req, res) => {
   const { nome, email, senha } = req.body;
@@ -17,7 +18,9 @@ const cadastrarUsuario = async (req, res) => {
     );
 
     if (verificarEmail.rows.length > 0) {
-      return res.status(400).json({ mensagem: "Já existe usuário cadastrado com o e-mail informado." });
+      return res.status(400).json({
+        mensagem: "Já existe usuário cadastrado com o e-mail informado.",
+      });
     }
 
     const senhaCriptografada = await bcrypt.hash(senha, 10);
@@ -33,6 +36,44 @@ const cadastrarUsuario = async (req, res) => {
   }
 };
 
+const login = async (req, res) => {
+  const { email, senha } = req.body;
+
+  if (!email || !senha) {
+    return res
+      .status(400)
+      .json({ mensagem: "Todos os campos são obrigatórios." });
+  }
+
+  try {
+    const usuario = await pool.query(
+      "select * from usuarios where email = $1",
+      [email]
+    );
+
+    if (usuario.rowCount < 1) {
+      return res.status(404).json({ mensagem: "Email ou senha incorretos." });
+    }
+
+    const senhaValida = await bcrypt.compare(senha, usuario.rows[0].senha);
+
+    if (!senhaValida) {
+      return res.status(400).json({ mensagem: "Email ou senha incorretos." });
+    }
+
+    const token = jwt.sign({ id: usuario.rows[0].id }, "senha123", {
+      expiresIn: "8h",
+    });
+
+    const { senha: _, ...usuarioLogado } = usuario.rows[0];
+
+    return res.json({ usuario: usuarioLogado, token });
+  } catch (error) {
+    return res.status(500).json({ mensagem: "Erro interno do servidor." });
+  }
+};
+
 module.exports = {
   cadastrarUsuario,
+  login,
 };
