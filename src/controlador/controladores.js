@@ -52,13 +52,17 @@ const login = async (req, res) => {
     );
 
     if (usuario.rowCount < 1) {
-      return res.status(404).json({ mensagem: "Email ou senha incorretos." });
+      return res
+        .status(404)
+        .json({ mensagem: "Usuário e/ou senha inválido(s)." });
     }
 
     const senhaValida = await bcrypt.compare(senha, usuario.rows[0].senha);
 
     if (!senhaValida) {
-      return res.status(400).json({ mensagem: "Email ou senha incorretos." });
+      return res
+        .status(400)
+        .json({ mensagem: "Usuário e/ou senha inválido(s)." });
     }
 
     const token = jwt.sign({ id: usuario.rows[0].id }, "senha123", {
@@ -73,7 +77,22 @@ const login = async (req, res) => {
   }
 };
 
+const usuario = async (req, res) => {
+  try {
+    let usuarioid = req.usuario.id;
+    const usuario = await pool.query(
+      "select id, nome, email from usuarios where id = $1",
+      [usuarioid]
+    );
+
+    return res.json(usuario.rows[0]);
+  } catch (error) {
+    return res.status(500).json({ mensagem: "Erro interno do servidor." });
+  }
+};
+
 module.exports = {
   cadastrarUsuario,
   login,
+  usuario,
 };
