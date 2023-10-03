@@ -91,8 +91,46 @@ const usuario = async (req, res) => {
   }
 };
 
+const atualizarUsuario = async (req, res) => {
+  const { nome, email, senha } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res
+      .status(400)
+      .json({ mensagem: "Todos os campos são obrigatórios." });
+  }
+
+  try {
+    let usuarioid = req.usuario.id;
+
+    const verificarEmail = await pool.query(
+      "select * from usuarios where email = $1",
+      [email]
+    );
+
+    if (verificarEmail.rows.length > 0) {
+      return res.status(400).json({
+        mensagem:
+          "O e-mail informado já está sendo utilizado por outro usuário.",
+      });
+    }
+
+    const senhaCriptografada = await bcrypt.hash(senha, 10);
+
+    const novoUsuario = await pool.query(
+      "update usuarios set nome = $1, email = $2, senha = $3 where id = $4",
+      [nome, email, senhaCriptografada, usuarioid]
+    );
+
+    return res.status(200).json();
+  } catch (error) {
+    return res.status(500).json({ mensagem: "Erro interno do servidor." });
+  }
+};
+
 module.exports = {
   cadastrarUsuario,
   login,
   usuario,
+  atualizarUsuario,
 };

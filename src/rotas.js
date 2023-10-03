@@ -3,6 +3,7 @@ const {
   cadastrarUsuario,
   login,
   usuario,
+  atualizarUsuario,
 } = require("./controlador/controladores");
 const verificarUsuarioLogado = require("./intermediario/intermediarios");
 
@@ -14,5 +15,6 @@ rotas.post("/login", login);
 rotas.use(verificarUsuarioLogado);
 
 rotas.get("/usuario", usuario);
+rotas.put("/usuario", atualizarUsuario);
 
 module.exports = rotas;
