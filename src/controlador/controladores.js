@@ -128,9 +128,35 @@ const atualizarUsuario = async (req, res) => {
   }
 };
 
+const listarCategorias = async (req, res) => {
+  try {
+    const categorias = await pool.query("select * from categorias");
+
+    return res.status(200).json(categorias.rows);
+  } catch (error) {
+    return res.status(500).json({ mensagem: "Erro interno do servidor." });
+  }
+};
+
+const listrarTransacoes = async (req, res) => {
+  try {
+    let usuarioid = req.usuario.id;
+    const transacoes = await pool.query(
+      "select transacoes.*, categorias.descricao as categoria_nome from transacoes join categorias on transacoes.categoria_id = categorias.id where transacoes.usuario_id = $1",
+      [usuarioid]
+    );
+
+    return res.status(200).json(transacoes.rows);
+  } catch (error) {
+    return res.status(500).json({ mensagem: "Erro interno do servidor." });
+  }
+};
+
 module.exports = {
   cadastrarUsuario,
   login,
   usuario,
   atualizarUsuario,
+  listarCategorias,
+  listrarTransacoes,
 };
