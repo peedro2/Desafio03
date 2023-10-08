@@ -154,18 +154,24 @@ const listarTransacoes = async (req, res) => {
 
 const detalharTransacoes = async (req, res) => {
   try {
-    let usuarioid = req.usuario.id;
-    const transacoes = await pool.query(
-      "select * from transacoes where usuario_id = $1",
-      [usuarioid]
+    const usuarioId = req.usuario.id;
+    const transacaoId = req.params.id;
+
+    const transacao = await pool.query(
+      "select * from transacoes where usuario_id = $1 and id = $2",
+      [usuarioId, transacaoId]
     );
 
-    return res.json(transacoes.rows);
+    if (transacao.rows.length === 0) {
+      return res.status(404).json({ mensagem: "Transação não encontrada." });
+    }
+
+    return res.json(transacao.rows[0]);
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
   }
 };
-
 
 const cadastrarTransacao = async (req, res) => {
   const { descricao, valor, data, categoria_id, tipo } = req.body;
@@ -191,7 +197,7 @@ const cadastrarTransacao = async (req, res) => {
     }
 
     const novaTransacao = await pool.query(
-      "insert into transacoes (descricao, valor, data, categoria_id, tipo, usuario_id) values ($1, $2, $3, $4, $5, $6) returing id, tipo, descricao, valor, data, usuario_id, categoria_id",
+      "insert into transacoes (descricao, valor, data, categoria_id, tipo, usuario_id) values ($1, $2, $3, $4, $5, $6) returning id, tipo, descricao, valor, data, usuario_id, categoria_id",
       [descricao, valor, data, categoria_id, tipo, usuario_id]
     );
 
@@ -279,28 +285,27 @@ const obterExtrato = async (req, res) => {
   const usuario_id = req.usuario.id;
 
   try {
-    
+   //calcular a soma das entradas
     const somaEntradas = await pool.query(
-      "select coalesce(sum(valor), 0) as somaEntradas from transacoes where usuario_id = $1 and tipo = 'entrada'",
+      "select sum(valor) as somaentradas from transacoes where usuario_id = $1 and tipo = 'entrada'",
       [usuario_id]
     );
 
-   
+    //calcular soma saidas 
     const somaSaidas = await pool.query(
-      "select coalesce(sum(valor), 0) as somaSaidas FROM transacoes where usuario_id = $1 and tipo = 'saida'",
+      "select sum(valor) as somasaidas from transacoes where usuario_id = $1 and tipo = 'saida'",
       [usuario_id]
     );
+    //  // imprimir 
+    // const valorEntradas = parseFloat(somaEntradas.rows[0].somaentradas) || 0;
+    // const valorSaidas = parseFloat(somaSaidas.rows[0].somasaidas) || 0;
 
-   
-    const valorEntradas = parseFloat(somaEntradas.rows[0].somaEntradas) || 0;
-    const valorSaidas = parseFloat(somaSaidas.rows[0].somaSaidas) || 0;
-
-    const extrato = {
-      entrada: valorEntradas,
-      saida: valorSaidas,
+    const extratox = {
+      entrada: somasaidas,
+      saida: somaentradas,
     };
 
-    return res.status(200).json(extrato);
+    return res.status(200).json(extratox);
   } catch (error) {
     console.error(error); 
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
