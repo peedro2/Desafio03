@@ -152,36 +152,36 @@ const listarTransacoes = async (req, res) => {
   }
 };
 
-const detalharTransacoes = async (req, res) => {
-  try {
-    const usuarioId = req.usuario.id;
-    const transacaoId = req.params.id;
+const detalharTransacao = async (req, res) => {
+  let usuarioid = req.usuario.id;
+  const id = req.params.id;
 
-    const transacao = await pool.query(
-      "select * from transacoes where usuario_id = $1 and id = $2",
-      [usuarioId, transacaoId]
+  try {
+    const Buscartransacao = await pool.query(
+      "select transacoes.*, categorias.descricao as categoria_nome from transacoes join categorias on transacoes.categoria_id = categorias.id where transacoes.usuario_id = $1 and transacoes.id = $2",
+      [usuarioid, id]
     );
 
-    if (transacao.rows.length === 0) {
-      return res.status(404).json({ mensagem: "Transação não encontrada." });
+    if (Buscartransacao.rows[0] === undefined) {
+      return res.status(400).json({ mensagem: "Transação não encontrada." });
+    } else {
+      return res.status(200).json(Buscartransacao.rows[0]);
     }
-
-    return res.json(transacao.rows[0]);
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
   }
 };
 
 const cadastrarTransacao = async (req, res) => {
   const { descricao, valor, data, categoria_id, tipo } = req.body;
-  const usuario_id = req.usuario.id; 
+  const usuario_id = req.usuario.id;
   if (!descricao || !valor || !data || !categoria_id || !tipo) {
-    return res.status(400).json({ mensagem: "Todos os campos são obrigatórios." });
+    return res
+      .status(400)
+      .json({ mensagem: "Todos os campos são obrigatórios." });
   }
 
   try {
-  
     const categoria = await pool.query(
       "select * from categorias where id = $1",
       [categoria_id]
@@ -191,13 +191,14 @@ const cadastrarTransacao = async (req, res) => {
       return res.status(400).json({ mensagem: "Categoria não encontrada." });
     }
 
-  
     if (tipo !== "entrada" && tipo !== "saida") {
-      return res.status(400).json({ mensagem: "O tipo deve ser 'entrada' ou 'saida'." });
+      return res
+        .status(400)
+        .json({ mensagem: "O tipo deve ser 'entrada' ou 'saida'." });
     }
 
     const novaTransacao = await pool.query(
-      "insert into transacoes (descricao, valor, data, categoria_id, tipo, usuario_id) values ($1, $2, $3, $4, $5, $6) returning id, tipo, descricao, valor, data, usuario_id, categoria_id",
+      "insert into transacoes (descricao, valor, data, categoria_id, tipo, usuario_id) values ($1, $2, $3, $4, $5, $6) returning id, tipo, descricao, valor, to_char(data, 'YYYY-MM-DD HH24:MI:SS') as data, usuario_id, categoria_id",
       [descricao, valor, data, categoria_id, tipo, usuario_id]
     );
 
@@ -207,27 +208,28 @@ const cadastrarTransacao = async (req, res) => {
   }
 };
 
-
-
 const atualizarTransacao = async (req, res) => {
   const { descricao, valor, data, categoria_id, tipo } = req.body;
-  const usuario_id = req.usuario.id; 
+  const usuario_id = req.usuario.id;
 
   const transacaoId = req.params.id;
 
   if (!descricao || !valor || !data || !categoria_id || !tipo) {
-    return res.status(400).json({ mensagem: "Todos os campos são obrigatórios." });
+    return res
+      .status(400)
+      .json({ mensagem: "Todos os campos são obrigatórios." });
   }
 
   try {
-   
     const transacao = await pool.query(
       "select * from transacoes where id = $1 and usuario_id = $2",
       [transacaoId, usuario_id]
     );
 
     if (transacao.rows.length === 0) {
-      return res.status(404).json({ mensagem: "Transação não encontrada ou não pertence ao usuário logado." });
+      return res.status(404).json({
+        mensagem: "Transação não encontrada ou não pertence ao usuário logado.",
+      });
     }
 
     const categoria = await pool.query(
@@ -240,7 +242,9 @@ const atualizarTransacao = async (req, res) => {
     }
 
     if (tipo !== "entrada" && tipo !== "saida") {
-      return res.status(400).json({ mensagem: "O tipo deve ser 'entrada' ou 'saida'." });
+      return res
+        .status(400)
+        .json({ mensagem: "O tipo deve ser 'entrada' ou 'saida'." });
     }
 
     await pool.query(
@@ -248,18 +252,17 @@ const atualizarTransacao = async (req, res) => {
       [descricao, valor, data, categoria_id, tipo, transacaoId]
     );
 
-    return res.status(204).send(); 
+    return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
   }
 };
-const excluirTransacao = async (req, res) => {
 
+const excluirTransacao = async (req, res) => {
   const transacaoId = req.params.id;
   const usuario_id = req.usuario.id;
 
   try {
-  
     const transacao = await pool.query(
       "select * from transacoes where id = $1 and usuario_id = $2",
       [transacaoId, usuario_id]
@@ -269,11 +272,7 @@ const excluirTransacao = async (req, res) => {
       return res.status(404).json({ mensagem: "Transação não encontrada." });
     }
 
-  
-    await pool.query(
-      "delete from transacoes where id = $1",
-      [transacaoId]
-    );
+    await pool.query("delete from transacoes where id = $1", [transacaoId]);
 
     return res.status(204).send();
   } catch (error) {
@@ -281,33 +280,32 @@ const excluirTransacao = async (req, res) => {
   }
 };
 
-const obterExtrato = async (req, res) => {
-  const usuario_id = req.usuario.id;
-
+const exibirExtrato = async (req, res) => {
   try {
-   //calcular a soma das entradas
-    const somaEntradas = await pool.query(
-      "select sum(valor) as somaentradas from transacoes where usuario_id = $1 and tipo = 'entrada'",
-      [usuario_id]
+    const usuarioId = req.usuario.id;
+    let totalEntrada = 0;
+    let totalSaida = 0;
+
+    const consultaEntrada = await pool.query(
+      "select coalesce(sum(valor), 0) from transacoes where usuario_id = $1 and tipo = 'entrada'",
+      [usuarioId]
     );
 
-    //calcular soma saidas 
-    const somaSaidas = await pool.query(
-      "select sum(valor) as somasaidas from transacoes where usuario_id = $1 and tipo = 'saida'",
-      [usuario_id]
+    const consultaSaida = await pool.query(
+      "select coalesce(sum(valor), 0) from transacoes where usuario_id = $1 and tipo = 'saida'",
+      [usuarioId]
     );
-    //  // imprimir 
-    // const valorEntradas = parseFloat(somaEntradas.rows[0].somaentradas) || 0;
-    // const valorSaidas = parseFloat(somaSaidas.rows[0].somasaidas) || 0;
 
-    const extratox = {
-      entrada: somasaidas,
-      saida: somaentradas,
+    totalEntrada = consultaEntrada.rows[0].coalesce;
+    totalSaida = consultaSaida.rows[0].coalesce;
+
+    const extrato = {
+      entrada: totalEntrada,
+      saida: totalSaida,
     };
 
-    return res.status(200).json(extratox);
+    return res.json(extrato);
   } catch (error) {
-    console.error(error); 
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
   }
 };
@@ -319,11 +317,9 @@ module.exports = {
   atualizarUsuario,
   listarCategorias,
   listarTransacoes,
-  detalharTransacoes,
   cadastrarTransacao,
   atualizarTransacao,
   excluirTransacao,
-  obterExtrato
+  exibirExtrato,
+  detalharTransacao,
 };
-
-
