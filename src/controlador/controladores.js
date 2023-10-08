@@ -141,12 +141,36 @@ const listarCategorias = async (req, res) => {
 const listarTransacoes = async (req, res) => {
   try {
     let usuarioid = req.usuario.id;
-    const transacoes = await pool.query(
-      "select transacoes.*, categorias.descricao as categoria_nome from transacoes join categorias on transacoes.categoria_id = categorias.id where transacoes.usuario_id = $1",
-      [usuarioid]
-    );
+    const filtros = req.query.filtro;
+    let array = [usuarioid];
 
-    return res.status(200).json(transacoes.rows);
+    if (!filtros) {
+      const transacoes = await pool.query(
+        "select transacoes.*, categorias.descricao as categoria_nome from transacoes join categorias on transacoes.categoria_id = categorias.id where transacoes.usuario_id = $1",
+        [usuarioid]
+      );
+
+      return res.status(200).json(transacoes.rows);
+    } else {
+      let placeholders = [];
+
+      for (let i = 0; i < filtros.length; i++) {
+        placeholders.push(`$${i + 2}`);
+      }
+
+      const placeholdersStr = placeholders.join(", ");
+
+      const query = `
+        SELECT transacoes.*, categorias.descricao as categoria_nome FROM transacoes JOIN categorias ON transacoes.categoria_id = categorias.id WHERE transacoes.usuario_id = $1 AND categorias.descricao IN (${placeholdersStr})`;
+
+      for (let filtro of filtros) {
+        array.push(filtro[0].toUpperCase() + filtro.slice(1).toLowerCase());
+      }
+
+      const transacoes = await pool.query(query, array);
+
+      return res.status(200).json(transacoes.rows);
+    }
   } catch (error) {
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
   }
