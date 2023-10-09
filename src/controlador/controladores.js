@@ -222,11 +222,18 @@ const cadastrarTransacao = async (req, res) => {
     }
 
     const novaTransacao = await pool.query(
-      "insert into transacoes (descricao, valor, data, categoria_id, tipo, usuario_id) values ($1, $2, $3, $4, $5, $6) returning id, tipo, descricao, valor, to_char(data, 'YYYY-MM-DD HH24:MI:SS') as data, usuario_id, categoria_id",
+      "insert into transacoes (descricao, valor, data, categoria_id, tipo, usuario_id) values ($1, $2, $3, $4, $5, $6) returning id, tipo, descricao, valor, data, usuario_id, categoria_id",
       [descricao, valor, data, categoria_id, tipo, usuario_id]
     );
+    const categoriaDescricao = await pool.query(
+      "select descricao from categorias where id = $1",
+      [categoria_id]
+    );
 
-    return res.status(201).json(novaTransacao.rows[0]);
+    const transacaoSalva = novaTransacao.rows[0];
+    transacaoSalva.categoria_descricao = categoriaDescricao.rows[0].descricao;
+
+    return res.status(201).json(transacaoSalva);
   } catch (error) {
     return res.status(500).json({ mensagem: "Erro interno do servidor." });
   }

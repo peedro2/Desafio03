@@ -37,8 +37,9 @@ create table transacoes (
   id serial primary key,
   descricao text,
   valor int,
-  data timestamp,
+  data timestamp with time zone ,
   categoria_id serial references categorias(id) not null,
   usuario_id serial references usuarios(id) not null,
   tipo text
  );
+ 
